@@ -1,9 +1,9 @@
 package com.example.teamcity.api;
 
-import com.example.teamcity.api.enums.Endpoint;
+import com.example.teamcity.api.generators.TestDataGenerator;
 import com.example.teamcity.api.models.BuildType;
 import com.example.teamcity.api.models.Project;
-import com.example.teamcity.api.models.User;
+import com.example.teamcity.api.models.Roles;
 import com.example.teamcity.api.requests.CheckedRequests;
 import com.example.teamcity.api.requests.unchecked.UncheckedBase;
 import com.example.teamcity.api.spec.Specifications;
@@ -28,6 +28,8 @@ public class BuildTypeTest extends BaseApiTest{
 
         userCheckRequests.getRequest(BUILD_TYPES).create(testData.getBuildType());
 
+        System.out.println("Generated Build Type ID: " + testData.getBuildType().getId());
+
         var createdBuildType = userCheckRequests.<BuildType>getRequest(BUILD_TYPES).read(testData.getBuildType().getId());
 
         softy.assertEquals(testData.getBuildType().getName(), createdBuildType.getName(), "Build type name is not correct");
@@ -35,14 +37,15 @@ public class BuildTypeTest extends BaseApiTest{
 
     @Test(description = "User should not be able to create two build types with the same id", groups = {"Negative", "CRUD"})
     public void userCreatesTwoBuildTypesWithTheSameIdTest() {
+        //Создание данных:
         var buildTypeWithSameId = generate(Arrays.asList(testData.getProject()), BuildType.class, testData.getBuildType().getId());
-
+        //Создание пользователя:
         superUserCheckRequests.getRequest(USERS).create(testData.getUser());
-
+        //Создание проекта:
         var userCheckRequests = new CheckedRequests(Specifications.authSpec(testData.getUser()));
-
+        //Создание первого Build Type:
         userCheckRequests.<Project>getRequest(PROJECTS).create(testData.getProject());
-
+        //Проверка попытки создания дубликата:
         userCheckRequests.getRequest(BUILD_TYPES).create(testData.getBuildType());
         new UncheckedBase(Specifications.authSpec(testData.getUser()), BUILD_TYPES)
                 .create(buildTypeWithSameId)
