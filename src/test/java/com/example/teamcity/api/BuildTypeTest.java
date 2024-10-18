@@ -4,6 +4,7 @@ import com.example.teamcity.api.generators.TestDataGenerator;
 import com.example.teamcity.api.models.BuildType;
 import com.example.teamcity.api.models.Project;
 import com.example.teamcity.api.models.Roles;
+import com.example.teamcity.api.models.User;
 import com.example.teamcity.api.requests.CheckedRequests;
 import com.example.teamcity.api.requests.unchecked.UncheckedBase;
 import com.example.teamcity.api.spec.Specifications;
@@ -23,29 +24,18 @@ public class BuildTypeTest extends BaseApiTest{
     public void userCreatesBuildTypeTest() {
         superUserCheckRequests.getRequest(USERS).create(testData.getUser());
         var userCheckRequests = new CheckedRequests(Specifications.authSpec(testData.getUser()));
-
         userCheckRequests.<Project>getRequest(PROJECTS).create(testData.getProject());
-
         userCheckRequests.getRequest(BUILD_TYPES).create(testData.getBuildType());
-
-        System.out.println("Generated Build Type ID: " + testData.getBuildType().getId());
-
         var createdBuildType = userCheckRequests.<BuildType>getRequest(BUILD_TYPES).read(testData.getBuildType().getId());
-
         softy.assertEquals(testData.getBuildType().getName(), createdBuildType.getName(), "Build type name is not correct");
     }
 
     @Test(description = "User should not be able to create two build types with the same id", groups = {"Negative", "CRUD"})
     public void userCreatesTwoBuildTypesWithTheSameIdTest() {
-        //Создание данных:
         var buildTypeWithSameId = generate(Arrays.asList(testData.getProject()), BuildType.class, testData.getBuildType().getId());
-        //Создание пользователя:
         superUserCheckRequests.getRequest(USERS).create(testData.getUser());
-        //Создание проекта:
         var userCheckRequests = new CheckedRequests(Specifications.authSpec(testData.getUser()));
-        //Создание первого Build Type:
         userCheckRequests.<Project>getRequest(PROJECTS).create(testData.getProject());
-        //Проверка попытки создания дубликата:
         userCheckRequests.getRequest(BUILD_TYPES).create(testData.getBuildType());
         new UncheckedBase(Specifications.authSpec(testData.getUser()), BUILD_TYPES)
                 .create(buildTypeWithSameId)
@@ -55,24 +45,34 @@ public class BuildTypeTest extends BaseApiTest{
 
     @Test(description = "Project Admin should be able to create build type for their project", groups = {"Positive", "Roles"})
     public void projectAdminCreatesBuildTypeTest(){
-        step("Create user");
-        step("Create project");
-        step("Grand user PROJECT_ADMIN role in project");
-        step("Create buildType for project by user (PROJECT_ADMIN)");
-        step("Check buildType was created successfully");
+        superUserCheckRequests.<Project>getRequest(PROJECTS).create(testData.getProject());
+        testData.getUser().setRoles(generate(Roles.class, "PROJECT_ADMIN", "p:" + testData.getProject().getId()));
+        superUserCheckRequests.<User>getRequest(USERS).create(testData.getUser());
+        var userCheckRequests = new CheckedRequests(Specifications.authSpec(testData.getUser()));
+        userCheckRequests.getRequest(BUILD_TYPES).create(testData.getBuildType());
+        var createdBuildType = userCheckRequests.<BuildType>getRequest(BUILD_TYPES).read(testData.getBuildType().getId());
+        softy.assertEquals(testData.getBuildType().getName(), createdBuildType.getName(), "Build type name is not correct.");
     }
 
     @Test(description = "Project Admin should be able to create build type for their project", groups = {"Negative", "Roles"})
     public void projectAdminCreatesBuildTypeForAnotherUserProjectTest(){
-        step("Create user1");
-        step("Create project1");
-        step("Grand user1 PROJECT_ADMIN role in project1");
+        var project1 = generate(Project.class);
+        superUserCheckRequests.getRequest(PROJECTS).create(project1);
+        var user1 = generate(User.class);
+        user1.setRoles(generate(Roles.class, "PROJECT_ADMIN", "p:" + project1.getId()));
+        superUserCheckRequests.<User>getRequest(USERS).create(user1);
 
-        step("Create user2");
-        step("Create project2");
-        step("Grand user2 PROJECT_ADMIN role in project2");
+        var project2 = generate(Project.class);
+        superUserCheckRequests.getRequest(PROJECTS).create(project2);
+        var user2 = generate(User.class);
+        user2.setRoles(generate(Roles.class, "PROJECT_ADMIN", "p:" + project2.getId()));
+        superUserCheckRequests.<User>getRequest(USERS).create(user2);
 
-        step("Create buildType for project1 by user2");
-        step("Check buildType was not created with forbidden code");
+        testData.getBuildType().setProject(project1);
+        new UncheckedBase(Specifications.authSpec(user2), BUILD_TYPES)
+                .create(testData.getBuildType())
+                .then().assertThat()
+                .statusCode(HttpStatus.SC_FORBIDDEN)
+                .body(Matchers.containsString("Access denied. Check the user has enough permissions to perform the operation."));
     }
 }
