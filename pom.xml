@@ -41,7 +41,7 @@
         <dependency>
             <groupId>com.codeborne</groupId>
             <artifactId>selenide</artifactId>
-            <version>5.24.3</version>
+            <version>${selenide.version}</version>
         </dependency>
     </dependencies>
     <properties>
@@ -50,5 +50,6 @@
         <rest-assured.version>5.1.1</rest-assured.version>
         <lombok.version>1.18.30</lombok.version>
         <jackson.version>2.17.2</jackson.version>
+        <selenide.version>7.4.3</selenide.version>
     </properties>
 </project>
